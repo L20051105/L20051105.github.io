@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AES 加解密工具 · 文本与文件</title>
+<style>
+  :root{
+    --bg:#0f1420;
+    --panel:#161d2c;
+    --panel-2:#1d2637;
+    --line:#2a3549;
+    --text:#e6ecf5;
+    --muted:#8d9bb3;
+    --accent:#4f8cff;
+    --accent-2:#3a6fd8;
+    --ok:#34c98a;
+    --err:#ff6b6b;
+    --warn:#ffc857;
+    --radius:12px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:radial-gradient(1200px 600px at 50% -200px,#1b2740 0%,var(--bg) 60%);
+    color:var(--text);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",system-ui,sans-serif;
+    min-height:100vh;
+    padding:32px 16px 64px;
+  }
+  .wrap{max-width:860px;margin:0 auto}
+  header{text-align:center;margin-bottom:24px}
+  header h1{font-size:24px;margin:0 0 8px;letter-spacing:.5px}
+  header p{margin:0;color:var(--muted);font-size:13.5px}
+  .lock{
+    display:inline-flex;align-items:center;gap:6px;
+    background:rgba(79,140,255,.12);color:var(--accent);
+    border:1px solid rgba(79,140,255,.3);
+    padding:3px 10px;border-radius:999px;font-size:12.5px;margin-bottom:12px;
+  }
+  .tabs{display:flex;gap:8px;background:var(--panel);padding:6px;border-radius:var(--radius);border:1px solid var(--line);margin-bottom:18px}
+  .tabs button{
+    flex:1;padding:10px;border:0;border-radius:8px;background:transparent;color:var(--muted);
+    font-size:14.5px;font-weight:500;cursor:pointer;transition:.18s;font-family:inherit;
+  }
+  .tabs button:hover{color:var(--text);background:rgba(255,255,255,.04)}
+  .tabs button.active{background:var(--accent);color:#fff;box-shadow:0 4px 14px rgba(79,140,255,.3)}
+  .panel{display:none}
+  .panel.active{display:block;animation:fade .22s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  .card{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:18px;margin-bottom:14px;
+  }
+  .card h2{font-size:14px;margin:0 0 12px;color:var(--muted);font-weight:600;letter-spacing:.4px}
+  textarea,input[type=password],input[type=text]{
+    width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;
+    color:var(--text);padding:11px 12px;font-size:14px;font-family:inherit;outline:none;
+    transition:.15s;resize:vertical;
+  }
+  textarea{min-height:120px;font-family:ui-monospace,Consolas,"Courier New",monospace;font-size:13px;line-height:1.55}
+  textarea:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(79,140,255,.15)}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .row>*{flex:1;min-width:170px}
+  label.field{display:block;margin-bottom:12px}
+  label.field span{display:block;font-size:12.5px;color:var(--muted);margin-bottom:6px}
+  .pw-wrap{position:relative}
+  .pw-wrap input{padding-right:66px}
+  .pw-wrap .eye{
+    position:absolute;right:6px;top:50%;transform:translateY(-50%);
+    background:transparent;border:0;color:var(--muted);font-size:12.5px;
+    cursor:pointer;padding:6px 8px;border-radius:6px;font-family:inherit;
+  }
+  .pw-wrap .eye:hover{color:var(--accent);background:rgba(79,140,255,.1)}
+  .btn{
+    border:0;border-radius:9px;padding:11px 18px;font-size:14.5px;font-weight:600;
+    cursor:pointer;font-family:inherit;transition:.15s;display:inline-flex;
+    align-items:center;justify-content:center;gap:7px;
+  }
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .btn-primary{background:var(--accent);color:#fff}
+  .btn-primary:hover:not(:disabled){background:var(--accent-2)}
+  .btn-ghost{background:var(--panel-2);color:var(--text);border:1px solid var(--line)}
+  .btn-ghost:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+  .btn-sm{padding:7px 12px;font-size:13px;font-weight:500}
+  .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .actions .btn{flex:1;min-width:150px}
+  .drop{
+    border:2px dashed var(--line);border-radius:var(--radius);padding:30px 18px;text-align:center;
+    cursor:pointer;transition:.18s;background:rgba(255,255,255,.015);
+  }
+  .drop:hover,.drop.over{border-color:var(--accent);background:rgba(79,140,255,.07)}
+  .drop .icon{font-size:30px;line-height:1;margin-bottom:10px;opacity:.85}
+  .drop .main{font-size:14.5px;margin-bottom:4px}
+  .drop .sub{font-size:12.5px;color:var(--muted)}
+  .fileinfo{
+    display:none;align-items:center;gap:12px;margin-top:12px;padding:11px 13px;
+    background:var(--panel-2);border:1px solid var(--line);border-radius:9px;
+  }
+  .fileinfo.show{display:flex}
+  .fileinfo .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13.5px}
+  .fileinfo .size{color:var(--muted);font-size:12.5px;white-space:nowrap}
+  .fileinfo .clear{background:transparent;border:0;color:var(--muted);cursor:pointer;font-size:16px;padding:2px 6px;border-radius:6px}
+  .fileinfo .clear:hover{color:var(--err);background:rgba(255,107,107,.1)}
+  .progress{display:none;height:6px;background:var(--panel-2);border-radius:99px;overflow:hidden;margin-top:14px}
+  .progress.show{display:block}
+  .progress .bar{height:100%;width:0;background:linear-gradient(90deg,var(--accent),#7ab0ff);border-radius:99px;transition:width .15s}
+  .status{
+    display:none;margin-top:12px;padding:10px 13px;border-radius:9px;font-size:13.5px;word-break:break-all;
+  }
+  .status.show{display:block}
+  .status.info{background:rgba(79,140,255,.1);color:#a9c8ff;border:1px solid rgba(79,140,255,.25)}
+  .status.ok{background:rgba(52,201,138,.1);color:var(--ok);border:1px solid rgba(52,201,138,.25)}
+  .status.err{background:rgba(255,107,107,.1);color:var(--err);border:1px solid rgba(255,107,107,.25)}
+  .status.warn{background:rgba(255,200,87,.1);color:var(--warn);border:1px solid rgba(255,200,87,.25)}
+  .hint{font-size:12.5px;color:var(--muted);margin:10px 0 0}
+  .hint b{color:var(--warn);font-weight:600}
+  .out-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .out-head h2{margin:0}
+  .out-head .tools{display:flex;gap:6px}
+  footer{text-align:center;color:var(--muted);font-size:12.5px;margin-top:26px;line-height:1.8}
+  .banner{
+    display:none;background:rgba(255,107,107,.12);border:1px solid rgba(255,107,107,.35);
+    color:#ffb3b3;padding:12px 14px;border-radius:10px;font-size:13.5px;margin-bottom:16px;
+  }
+  .banner.show{display:block}
+  @media (max-width:560px){
+    body{padding:18px 10px 40px}
+    .card{padding:14px}
+    .actions .btn{min-width:0}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="lock">🔒 全程本地运行 · 不上传服务器</div>
+    <h1>AES 加解密工具</h1>
+    <p>AES-256-GCM + PBKDF2 密钥派生 · 支持文本与任意文件</p>
+  </header>
+
+  <div class="banner" id="secureBanner">
+    当前页面不在安全上下文中（crypto.subtle 不可用）。请用 <b>https</b> 或 <b>localhost</b> 打开，或直接在 Chrome / Edge / Firefox 中双击打开本文件。
+  </div>
+
+  <nav class="tabs">
+    <button id="tabText" class="active" type="button">📝 文本加密</button>
+    <button id="tabFile" type="button">📁 文件加密</button>
+  </nav>
+
+  <!-- ======================= 文本 ======================= -->
+  <section class="panel active" id="panelText">
+    <div class="card">
+      <h2>输入内容</h2>
+      <textarea id="textIn" placeholder="要加密的文本，或要解密的 Base64 密文…"></textarea>
+      <label class="field" style="margin-top:14px">
+        <span>密码</span>
+        <div class="pw-wrap">
+          <input type="password" id="textPw" placeholder="请设置/输入密码" autocomplete="off">
+          <button class="eye" type="button" data-eye="textPw">显示</button>
+        </div>
+      </label>
+      <label class="field" id="textPw2Wrap">
+        <span>确认密码（仅加密时需要）</span>
+        <input type="password" id="textPw2" placeholder="再输入一次" autocomplete="off">
+      </label>
+      <div class="actions">
+        <button class="btn btn-primary" id="btnTextEnc" type="button">🔐 加密</button>
+        <button class="btn btn-ghost" id="btnTextDec" type="button">🔓 解密</button>
+        <button class="btn btn-ghost" id="btnTextPw" type="button">🎲 随机密码</button>
+      </div>
+      <div class="status" id="textStatus"></div>
+    </div>
+
+    <div class="card">
+      <div class="out-head">
+        <h2>输出结果</h2>
+        <div class="tools">
+          <button class="btn btn-ghost btn-sm" id="btnTextCopy" type="button">复制</button>
+          <button class="btn btn-ghost btn-sm" id="btnTextSave" type="button">下载 .txt</button>
+        </div>
+      </div>
+      <textarea id="textOut" placeholder="结果会显示在这里…" readonly></textarea>
+      <p class="hint">加密后的密文是一段 Base64 文本，可直接复制粘贴发送。解密时请把整段密文粘回输入框。</p>
+    </div>
+  </section>
+
+  <!-- ======================= 文件 ======================= -->
+  <section class="panel" id="panelFile">
+    <div class="card">
+      <h2>选择文件</h2>
+      <div class="drop" id="drop">
+        <div class="icon">📁</div>
+        <div class="main">点击选择文件，或把文件拖到这里</div>
+        <div class="sub">任意格式 · 支持大文件分块处理 · 文件不会离开你的电脑</div>
+      </div>
+      <input type="file" id="fileInput" style="display:none">
+      <div class="fileinfo" id="fileInfo">
+        <span class="name" id="fileName"></span>
+        <span class="size" id="fileSize"></span>
+        <button class="clear" id="fileClear" type="button" title="移除">✕</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>密码</h2>
+      <label class="field">
+        <span>密码</span>
+        <div class="pw-wrap">
+          <input type="password" id="filePw" placeholder="请设置/输入密码" autocomplete="off">
+          <button class="eye" type="button" data-eye="filePw">显示</button>
+        </div>
+      </label>
+      <label class="field" id="filePw2Wrap" style="margin-bottom:0">
+        <span>确认密码（仅加密时需要）</span>
+        <input type="password" id="filePw2" placeholder="再输入一次" autocomplete="off">
+      </label>
+      <div class="actions">
+        <button class="btn btn-primary" id="btnFileEnc" type="button">🔐 加密并下载</button>
+        <button class="btn btn-ghost" id="btnFileDec" type="button">🔓 解密并下载</button>
+        <button class="btn btn-ghost" id="btnFilePw" type="button">🎲 随机密码</button>
+      </div>
+      <div class="progress" id="fileProgress"><div class="bar" id="fileBar"></div></div>
+      <div class="status" id="fileStatus"></div>
+      <p class="hint">加密后会得到 <b>原文件名.aesenc</b>；解密时选中该文件即可还原原始文件名和内容。</p>
+    </div>
+  </section>
+
+  <footer>
+    AES-256-GCM 认证加密 · PBKDF2-SHA256 密钥派生（25 万次迭代）· 每次随机盐与 IV<br>
+    ⚠️ 密码不会以任何形式保存，<b>忘记密码将无法恢复数据</b>，请务必自行妥善保管。
+  </footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------------- 常量与工具 ---------------- */
+  const VERSION = 1;
+  const ITERATIONS = 250000;
+  const MAX_ITERATIONS = 2000000;
+  const SALT_LEN = 16;
+  const IV_LEN = 12;
+  const CHUNK_SIZE = 4 * 1024 * 1024;      // 4MB 分块
+  const MAGIC_TEXT = new Uint8Array([0x41, 0x45, 0x53, 0x54]); // "AEST"
+  const MAGIC_FILE = new Uint8Array([0x41, 0x45, 0x53, 0x46]); // "AESF"
+
+  const enc = new TextEncoder();
+  const dec = new TextDecoder();
+
+  const $ = (id) => document.getElementById(id);
+
+  const bytesConcat = (...arrs) => {
+    let len = 0;
+    for (const a of arrs) len += a.length;
+    const out = new Uint8Array(len);
+    let o = 0;
+    for (const a of arrs) { out.set(a, o); o += a.length; }
+    return out;
+  };
+
+  const bytesEqual = (a, b) => {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
+  };
+
+  function toBase64(bytes) {
+    let bin = '';
+    const step = 0x8000;
+    for (let i = 0; i < bytes.length; i += step) {
+      bin += String.fromCharCode.apply(null, bytes.subarray(i, i + step));
+    }
+    return btoa(bin);
+  }
+
+  function fromBase64(str) {
+    const clean = str.replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/');
+    const pad = clean.length % 4 === 0 ? '' : '='.repeat(4 - (clean.length % 4));
+    const bin = atob(clean + pad);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+
+  /* 顺序写入二进制结构 */
+  class Writer {
+    constructor() { this.parts = []; this.len = 0; }
+    push(u8) { this.parts.push(u8); this.len += u8.length; return this; }
+    u8(n) { return this.push(new Uint8Array([n & 0xff])); }
+    u16(n) { const a = new Uint8Array(2); new DataView(a.buffer).setUint16(0, n); return this.push(a); }
+    u32(n) { const a = new Uint8Array(4); new DataView(a.buffer).setUint32(0, n); return this.push(a); }
+    text(s) {
+      const b = enc.encode(s);
+      if (b.length > 0xffff) throw new Error('文件名过长，无法写入文件头');
+      this.u16(b.length);
+      return this.push(b);
+    }
+    concat() {
+      const out = new Uint8Array(this.len);
+      let o = 0;
+      for (const p of this.parts) { out.set(p, o); o += p.length; }
+      return out;
+    }
+  }
+
+  /* 顺序读取二进制结构 */
+  class Reader {
+    constructor(bytes, offset) { this.d = bytes; this.o = offset || 0; }
+    need(n) { if (this.o + n > this.d.length) throw new Error('数据不完整或格式不正确'); }
+    u8() { this.need(1); return this.d[this.o++]; }
+    u16() { this.need(2); const v = new DataView(this.d.buffer, this.d.byteOffset + this.o, 2).getUint16(0); this.o += 2; return v; }
+    u32() { this.need(4); const v = new DataView(this.d.buffer, this.d.byteOffset + this.o, 4).getUint32(0); this.o += 4; return v; }
+    bytes(n) { this.need(n); const v = this.d.subarray(this.o, this.o + n); this.o += n; return v; }
+    text() { return dec.decode(this.bytes(this.u16())); }
+  }
+
+  async function deriveKey(password, salt, iterations) {
+    const baseKey = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey(
+      { name: 'PBKDF2', salt, iterations, hash: 'SHA-256' },
+      baseKey,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['encrypt', 'decrypt']
+    );
+  }
+
+  function randomPassword(len) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*-_=+';
+    const buf = new Uint32Array(len || 20);
+    crypto.getRandomValues(buf);
+    let s = '';
+    for (let i = 0; i < buf.length; i++) s += chars[buf[i] % chars.length];
+    return s;
+  }
+
+  function humanSize(n) {
+    if (n < 1024) return n + ' B';
+    if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+    if (n < 1024 * 1024 * 1024) return (n / 1048576).toFixed(1) + ' MB';
+    return (n / 1073741824).toFixed(2) + ' GB';
+  }
+
+  /* ---------------- 状态提示 ---------------- */
+  function setStatus(el, message, type) {
+    if (!message) { el.className = 'status'; el.textContent = ''; return; }
+    el.className = 'status show ' + (type || 'info');
+    el.textContent = message;
+  }
+
+  function requireSecure() {
+    if (!window.isSecureContext || !window.crypto || !window.crypto.subtle) {
+      $('secureBanner').classList.add('show');
+      throw new Error('当前环境不支持 Web Crypto，请用 https / localhost 打开，或直接用 Chrome、Edge、Firefox 打开本文件');
+    }
+  }
+
+  /* ---------------- 文本加解密 ---------------- */
+  async function encryptText(text, password) {
+    requireSecure();
+    const salt = crypto.getRandomValues(new Uint8Array(SALT_LEN));
+    const iv = crypto.getRandomValues(new Uint8Array(IV_LEN));
+    const key = await deriveKey(password, salt, ITERATIONS);
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv, tagLength: 128 }, key, enc.encode(text)));
+    const w = new Writer();
+    w.push(MAGIC_TEXT).u8(VERSION).u32(ITERATIONS).push(salt).push(iv).push(ct);
+    return toBase64(w.concat());
+  }
+
+  async function decryptText(base64, password) {
+    requireSecure();
+    let raw;
+    try { raw = fromBase64(base64); }
+    catch (e) { throw new Error('密文格式不正确，请确认粘贴的是完整的 Base64 内容'); }
+
+    const r = new Reader(raw);
+    if (!bytesEqual(r.bytes(4), MAGIC_TEXT)) throw new Error('这不是本工具生成的密文');
+    if (r.u8() !== VERSION) throw new Error('不支持的密文版本');
+    const iterations = r.u32();
+    if (iterations > MAX_ITERATIONS) throw new Error('迭代次数异常，密文可能已被篡改');
+    const salt = r.bytes(SALT_LEN);
+    const iv = r.bytes(IV_LEN);
+    const ct = raw.subarray(r.o);
+    const key = await deriveKey(password, salt, iterations);
+    let plain;
+    try {
+      plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv, tagLength: 128 }, key, ct);
+    } catch (e) {
+      throw new Error('解密失败：密码错误，或密文已被修改');
+    }
+    return dec.decode(plain);
+  }
+
+  /* ---------------- 文件加解密（分块） ---------------- */
+  async function encryptFile(file, password, onProgress) {
+    requireSecure();
+    const salt = crypto.getRandomValues(new Uint8Array(SALT_LEN));
+    const ivPrefix = crypto.getRandomValues(new Uint8Array(8));
+    const fileId = crypto.getRandomValues(new Uint8Array(16));
+    const key = await deriveKey(password, salt, ITERATIONS);
+
+    const totalChunks = Math.max(1, Math.ceil(file.size / CHUNK_SIZE));
+    const head = new Writer();
+    head.push(MAGIC_FILE).u8(VERSION).u32(ITERATIONS)
+        .u8(SALT_LEN).push(salt)
+        .push(ivPrefix).push(fileId)
+        .u32(CHUNK_SIZE).u32(totalChunks)
+        .text(file.name);
+
+    const parts = [head.concat()];
+    const counter = new Uint8Array(4);
+    const dv = new DataView(counter.buffer);
+
+    for (let i = 0; i < totalChunks; i++) {
+      dv.setUint32(0, i);
+      const iv = bytesConcat(ivPrefix, counter);
+      const aad = bytesConcat(fileId, counter);
+      const blob = file.slice(i * CHUNK_SIZE, Math.min(file.size, (i + 1) * CHUNK_SIZE));
+      const plain = new Uint8Array(await blob.arrayBuffer());
+      const ct = new Uint8Array(await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv, additionalData: aad, tagLength: 128 }, key, plain
+      ));
+      const lenBuf = new Uint8Array(4);
+      new DataView(lenBuf.buffer).setUint32(0, ct.length);
+      parts.push(lenBuf, ct);
+      if (onProgress) onProgress((i + 1) / totalChunks);
+    }
+    return new Blob(parts, { type: 'application/octet-stream' });
+  }
+
+  async function decryptFile(file, password, onProgress) {
+    requireSecure();
+    // 1) 固定头：magic + version + iterations + saltLen
+    const fixed = new Uint8Array(await file.slice(0, 10).arrayBuffer());
+    const r0 = new Reader(fixed);
+    if (!bytesEqual(r0.bytes(4), MAGIC_FILE)) {
+      throw new Error('这不是本工具生成的文件（缺少 .aesenc 文件头）');
+    }
+    if (r0.u8() !== VERSION) throw new Error('不支持的文件版本');
+    const iterations = r0.u32();
+    if (iterations > MAX_ITERATIONS) throw new Error('迭代次数异常，文件可能已被篡改');
+    const saltLen = r0.u8();
+
+    // 2) 可变头：salt + ivPrefix + fileId + chunkSize + totalChunks + nameLen
+    const varStart = 10;
+    const varLen = saltLen + 8 + 16 + 4 + 4 + 2;
+    const varBuf = new Uint8Array(await file.slice(varStart, varStart + varLen).arrayBuffer());
+    const r1 = new Reader(varBuf);
+    const salt = r1.bytes(saltLen);
+    const ivPrefix = r1.bytes(8);
+    const fileId = r1.bytes(16);
+    const chunkSize = r1.u32();
+    const totalChunks = r1.u32();
+    const nameLen = r1.u16();
+    if (totalChunks <= 0 || totalChunks > 1000000 || chunkSize <= 0) throw new Error('文件头已损坏');
+
+    // 3) 原始文件名
+    const nameStart = varStart + varLen;
+    const nameBuf = new Uint8Array(await file.slice(nameStart, nameStart + nameLen).arrayBuffer());
+    const originalName = nameLen ? dec.decode(nameBuf) : 'decrypted.bin';
+
+    let pos = nameStart + nameLen;
+    const key = await deriveKey(password, salt, iterations);
+    const parts = [];
+    const counter = new Uint8Array(4);
+    const dv = new DataView(counter.buffer);
+
+    for (let i = 0; i < totalChunks; i++) {
+      const lenBuf = new Uint8Array(await file.slice(pos, pos + 4).arrayBuffer());
+      if (lenBuf.length < 4) throw new Error('文件不完整（数据被截断）');
+      const ctLen = new DataView(lenBuf.buffer).getUint32(0);
+      pos += 4;
+      const ct = new Uint8Array(await file.slice(pos, pos + ctLen).arrayBuffer());
+      if (ct.length !== ctLen) throw new Error('文件不完整（数据被截断）');
+      pos += ctLen;
+
+      dv.setUint32(0, i);
+      const iv = bytesConcat(ivPrefix, counter);
+      const aad = bytesConcat(fileId, counter);
+      let plain;
+      try {
+        plain = new Uint8Array(await crypto.subtle.decrypt(
+          { name: 'AES-GCM', iv, additionalData: aad, tagLength: 128 }, key, ct
+        ));
+      } catch (e) {
+        throw new Error('解密失败：密码错误，或文件已被修改/损坏');
+      }
+      parts.push(plain);
+      if (onProgress) onProgress((i + 1) / totalChunks);
+    }
+
+    return { blob: new Blob(parts, { type: 'application/octet-stream' }), name: originalName };
+  }
+
+  /* ---------------- 下载 ---------------- */
+  function download(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+
+  /* ---------------- 标签切换 ---------------- */
+  $('tabText').addEventListener('click', () => switchTab('text'));
+  $('tabFile').addEventListener('click', () => switchTab('file'));
+
+  function switchTab(which) {
+    const isText = which === 'text';
+    $('tabText').classList.toggle('active', isText);
+    $('tabFile').classList.toggle('active', !isText);
+    $('panelText').classList.toggle('active', isText);
+    $('panelFile').classList.toggle('active', !isText);
+  }
+
+  /* ---------------- 通用交互 ---------------- */
+  document.querySelectorAll('[data-eye]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const input = $(btn.dataset.eye);
+      const show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      btn.textContent = show ? '隐藏' : '显示';
+    });
+  });
+
+  function fillPassword(pwId, pw2Id) {
+    const pw = randomPassword(20);
+    $(pwId).type = 'text'; $(pw2Id).type = 'text';
+    $(pwId).value = pw; $(pw2Id).value = pw;
+    document.querySelectorAll('[data-eye]').forEach((b) => {
+      if (b.dataset.eye === pwId || b.dataset.eye === pw2Id) b.textContent = '隐藏';
+    });
+  }
+
+  $('btnTextPw').addEventListener('click', () => fillPassword('textPw', 'textPw2'));
+  $('btnFilePw').addEventListener('click', () => fillPassword('filePw', 'filePw2'));
+
+  function checkPassword(pwId, pw2Id, confirmNeeded) {
+    const pw = $(pwId).value;
+    if (!pw) throw new Error('请先输入密码');
+    if (pw.length < 4) throw new Error('密码太短，建议至少 8 位');
+    if (confirmNeeded) {
+      if ($(pw2Id).value !== pw) throw new Error('两次输入的密码不一致');
+    }
+    return pw;
+  }
+
+  /* ---------------- 文本面板 ---------------- */
+  let textBusy = false;
+
+  async function runText(mode) {
+    if (textBusy) return;
+    const status = $('textStatus');
+    const btnEnc = $('btnTextEnc'), btnDec = $('btnTextDec');
+    const input = $('textIn').value;
+
+    if (!input.trim()) { setStatus(status, mode === 'enc' ? '请先输入要加密的文本' : '请先粘贴要解密的密文', 'warn'); return; }
+
+    let password;
+    try { password = checkPassword('textPw', 'textPw2', mode === 'enc'); }
+    catch (e) { setStatus(status, e.message, 'warn'); return; }
+
+    textBusy = true;
+    btnEnc.disabled = btnDec.disabled = true;
+    setStatus(status, mode === 'enc' ? '加密中…' : '解密中…', 'info');
+
+    try {
+      if (mode === 'enc') {
+        const out = await encryptText(input, password);
+        $('textOut').value = out;
+        setStatus(status, '✅ 加密完成，密文已生成（' + out.length + ' 字符）', 'ok');
+      } else {
+        const out = await decryptText(input, password);
+        $('textOut').value = out;
+        setStatus(status, '✅ 解密完成', 'ok');
+      }
+    } catch (e) {
+      setStatus(status, '❌ ' + (e && e.message ? e.message : String(e)), 'err');
+    } finally {
+      textBusy = false;
+      btnEnc.disabled = btnDec.disabled = false;
+    }
+  }
+
+  $('btnTextEnc').addEventListener('click', () => runText('enc'));
+  $('btnTextDec').addEventListener('click', () => runText('dec'));
+
+  $('btnTextCopy').addEventListener('click', async () => {
+    const val = $('textOut').value;
+    if (!val) { setStatus($('textStatus'), '输出为空，没有可复制的内容', 'warn'); return; }
+    try {
+      await navigator.clipboard.writeText(val);
+      setStatus($('textStatus'), '📋 已复制到剪贴板', 'ok');
+    } catch (e) {
+      $('textOut').removeAttribute('readonly');
+      $('textOut').select();
+      const ok = document.execCommand('copy');
+      $('textOut').setAttribute('readonly', 'readonly');
+      setStatus($('textStatus'), ok ? '📋 已复制到剪贴板' : '复制失败，请手动选中并复制', ok ? 'ok' : 'err');
+    }
+  });
+
+  $('btnTextSave').addEventListener('click', () => {
+    const val = $('textOut').value;
+    if (!val) { setStatus($('textStatus'), '输出为空，没有可下载的内容', 'warn'); return; }
+    download(new Blob([val], { type: 'text/plain;charset=utf-8' }), 'encrypted.txt');
+  });
+
+  /* ---------------- 文件面板 ---------------- */
+  let currentFile = null;
+  let fileBusy = false;
+
+  const drop = $('drop'), fileInput = $('fileInput');
+
+  drop.addEventListener('click', () => fileInput.click());
+  drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+  drop.addEventListener('drop', (e) => {
+    e.preventDefault();
+    drop.classList.remove('over');
+    if (e.dataTransfer.files && e.dataTransfer.files.length) selectFile(e.dataTransfer.files[0]);
+  });
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files && fileInput.files.length) selectFile(fileInput.files[0]);
+  });
+
+  function selectFile(f) {
+    currentFile = f;
+    $('fileName').textContent = f.name;
+    $('fileSize').textContent = humanSize(f.size);
+    $('fileInfo').classList.add('show');
+    setStatus($('fileStatus'), '', '');
+  }
+
+  $('fileClear').addEventListener('click', (e) => {
+    e.stopPropagation();
+    currentFile = null;
+    fileInput.value = '';
+    $('fileInfo').classList.remove('show');
+    setStatus($('fileStatus'), '', '');
+  });
+
+  function setProgress(p) {
+    const box = $('fileProgress');
+    if (p === null) { box.classList.remove('show'); $('fileBar').style.width = '0%'; return; }
+    box.classList.add('show');
+    $('fileBar').style.width = Math.round(p * 100) + '%';
+  }
+
+  async function runFile(mode) {
+    if (fileBusy) return;
+    const status = $('fileStatus');
+    const btnEnc = $('btnFileEnc'), btnDec = $('btnFileDec');
+
+    if (!currentFile) { setStatus(status, '请先选择文件', 'warn'); return; }
+
+    let password;
+    try { password = checkPassword('filePw', 'filePw2', mode === 'enc'); }
+    catch (e) { setStatus(status, e.message, 'warn'); return; }
+
+    fileBusy = true;
+    btnEnc.disabled = btnDec.disabled = true;
+    setStatus(status, (mode === 'enc' ? '加密中…' : '解密中…') + '（大文件需要一点时间）', 'info');
+    setProgress(0);
+
+    const started = Date.now();
+    try {
+      if (mode === 'enc') {
+        const blob = await encryptFile(currentFile, password, setProgress);
+        download(blob, currentFile.name + '.aesenc');
+        setStatus(status, '✅ 加密完成：' + currentFile.name + '.aesenc（' + humanSize(blob.size) +
+          '，用时 ' + ((Date.now() - started) / 1000).toFixed(1) + 's）', 'ok');
+      } else {
+        const res = await decryptFile(currentFile, password, setProgress);
+        download(res.blob, res.name);
+        setStatus(status, '✅ 解密完成：' + res.name + '（' + humanSize(res.blob.size) +
+          '，用时 ' + ((Date.now() - started) / 1000).toFixed(1) + 's）', 'ok');
+      }
+    } catch (e) {
+      setStatus(status, '❌ ' + (e && e.message ? e.message : String(e)), 'err');
+    } finally {
+      fileBusy = false;
+      btnEnc.disabled = btnDec.disabled = false;
+      setProgress(null);
+    }
+  }
+
+  $('btnFileEnc').addEventListener('click', () => runFile('enc'));
+  $('btnFileDec').addEventListener('click', () => runFile('dec'));
+
+  // 页面加载时检查环境
+  if (!window.isSecureContext || !window.crypto || !window.crypto.subtle) {
+    $('secureBanner').classList.add('show');
+  }
+})();
+</script>
+</body>
+</html>
